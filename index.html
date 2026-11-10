@@ -178,14 +178,18 @@ select{width:100%;background:var(--panel-2);color:var(--text);border:1px solid v
 @keyframes cardIn{from{opacity:0;transform:translateY(16px) scale(.98)}}
 @keyframes pop{40%{transform:scale(1.015)}}
 .card.out{opacity:0;transform:scale(.94);transition:.25s}
-.frame{position:relative;aspect-ratio:4/3;background:#0A1114;background-image:radial-gradient(circle, rgba(140,190,195,.06) 1px, transparent 1.4px);background-size:14px 14px;border-bottom:1px solid var(--line-soft)}
+.frame{position:relative;aspect-ratio:4/3;cursor:ew-resize;background:#0A1114;background-image:radial-gradient(circle, rgba(140,190,195,.06) 1px, transparent 1.4px);background-size:14px 14px;border-bottom:1px solid var(--line-soft)}
 .compare{position:absolute;inset:0;--pos:50%}
 .compare img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
 .cmp-top{position:absolute;inset:0;clip-path:inset(0 calc(100% - var(--pos)) 0 0)}
-.cmp-line{position:absolute;top:0;bottom:0;left:var(--pos);width:2px;background:#fff;transform:translateX(-50%);pointer-events:none}
-.cmp-knob{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;background:#fff;color:#0C1519;font:800 .7rem var(--mono);display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.5)}
-.cmp-range{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:ew-resize;margin:0}
-.compare:focus-within .cmp-line{background:var(--amber)}
+.cmp-line{position:absolute;top:0;bottom:0;left:var(--pos);width:2px;background:linear-gradient(180deg,transparent,#fff 12%,#fff 88%,transparent);transform:translateX(-50%);pointer-events:none}
+.cmp-knob{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;background:#fff;color:#0C1519;font:800 .8rem var(--mono);display:grid;place-items:center;box-shadow:0 2px 10px rgba(0,0,0,.55)}
+.compare:not(.touched) .cmp-knob{animation:nudge 2.2s ease-in-out infinite}
+@keyframes nudge{0%,100%{transform:translate(-50%,-50%)}30%{transform:translate(calc(-50% - 10px),-50%)}60%{transform:translate(calc(-50% + 10px),-50%)}}
+.cmp-hint{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font:600 .68rem var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#fff;background:rgba(12,21,25,.72);border:1px solid rgba(255,255,255,.25);border-radius:99px;padding:4px 10px;pointer-events:none;transition:opacity .4s;white-space:nowrap}
+.compare.touched .cmp-hint{opacity:0}
+.cmp-range{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:ew-resize;margin:0;touch-action:none}
+.compare:focus-within .cmp-line{background:linear-gradient(180deg,transparent,var(--amber) 12%,var(--amber) 88%,transparent)}
 .tag{position:absolute;top:10px;font:600 .68rem var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:99px;pointer-events:none;opacity:0;transition:.3s}
 .card[data-status="done"] .tag{opacity:1}
 .tag-a{left:10px;color:var(--coral);background:rgba(255,106,77,.14);border:1px solid rgba(255,106,77,.4)}
@@ -211,7 +215,7 @@ select{width:100%;background:var(--panel-2);color:var(--text);border:1px solid v
 .pill.neutral{color:var(--amber);background:rgba(255,178,36,.1);border:1px solid rgba(255,178,36,.35)}
 .tech{font:400 .7rem var(--mono);color:var(--muted);margin-top:5px}
 .actions{padding:10px 14px 14px;margin-top:auto}
-.note{display:block;font-size:.72rem;color:var(--amber);margin-bottom:8px;min-height:0}
+.note{display:block;font-size:.72rem;color:var(--amber);margin-bottom:8px}
 
 /* ============ méthode ============ */
 .how{margin:64px 0 20px}
@@ -594,6 +598,7 @@ function createCard(item, delay){
         <div class="cmp-line"><span class="cmp-knob">◂▸</span></div>
         <input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Comparer avant / après">
         <span class="tag tag-a">Avant</span><span class="tag tag-b">Après</span>
+        <span class="cmp-hint">⟵ glissez </span>
       </div>
       <div class="proc">
         <span class="proc-status">En file…</span>
@@ -615,9 +620,20 @@ function createCard(item, delay){
   item.el = el;
   const q = s => el.querySelector(s);
 
-  q('.cmp-range').addEventListener('input', e => {
-    q('.compare').style.setProperty('--pos', e.target.value + '%');
+  /* comparateur avant/après : range clavier + glisser souris/tactile */
+  const cmpEl = q('.compare'), rangeEl = q('.cmp-range');
+  const setPos = v => { v = Math.max(0, Math.min(100, v)); rangeEl.value = v; cmpEl.style.setProperty('--pos', v + '%'); };
+  const touch = () => cmpEl.classList.add('touched');
+  rangeEl.addEventListener('input', e => { setPos(+e.target.value); touch(); });
+  cmpEl.addEventListener('pointerdown', e => {
+    touch();
+    const move = ev => { const r = cmpEl.getBoundingClientRect(); setPos((ev.clientX - r.left) / r.width * 100); };
+    move(e);
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   });
+
   q('.dl').addEventListener('click', () => {
     if(item.result) saveBlob(item.result.blob, outName(item));
   });
@@ -639,6 +655,8 @@ function renderCard(item){
 
   if(item.status === 'done' && item.result){
     const r = item.result;
+    const ar = Math.max(0.8, Math.min(2.2, r.w / r.h));
+    q('.frame').style.aspectRatio = String(ar);
     const bImg = q('.cmp-b');
     if(bImg.getAttribute('src') !== r.url) bImg.src = r.url;
     q('.s-after').textContent = fmtBytes(r.blob.size);
