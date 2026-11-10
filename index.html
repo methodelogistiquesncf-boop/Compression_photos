@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRESSE — Compresseur de photos à 500 Ko</title>
+<meta name="description" content="Compressez vos photos à 500 Ko (ou le poids de votre choix), 100 % dans votre navigateur. Aucun envoi serveur.">
+<meta name="theme-color" content="#0C1519">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23FFB224'/%3E%3Ctext x='16' y='23' font-size='20' font-family='Arial Black' text-anchor='middle' fill='%230C1519'%3EP%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* ============ base ============ */
+:root{
+  --ink:#0C1519; --panel:#122128; --panel-2:#16282F;
+  --line:#26434E; --line-soft:#1A3038;
+  --text:#E9F4F2; --muted:#8FB0B2;
+  --amber:#FFB224; --amber-deep:#B87F12; --coral:#FF6A4D; --mint:#3ADFA5; --teal:#37BFC4;
+  --display:'Bricolage Grotesque', 'Arial Black', sans-serif;
+  --body:'Instrument Sans', system-ui, sans-serif;
+  --mono:'JetBrains Mono', ui-monospace, monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+html,body{overflow-x:clip}
+body{
+  background:var(--ink); color:var(--text);
+  font:400 16px/1.55 var(--body);
+  min-height:100vh;
+}
+::selection{background:var(--amber);color:#1A1206}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:4px}
+img{max-width:100%}
+button{font-family:inherit}
+.mono{font-family:var(--mono)}
+kbd{font:600 .78em var(--mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 5px;background:var(--panel)}
+
+/* ============ fond en couches ============ */
+.bg-grid,.bg-grain,.glow{position:fixed;inset:0;pointer-events:none}
+.bg-grid{
+  z-index:0;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(140,190,195,.045) 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(90deg, rgba(140,190,195,.045) 0 1px, transparent 1px 44px);
+}
+.bg-grain{
+  z-index:2;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.glow{z-index:0;border-radius:50%}
+.glow-a{top:-220px;right:-180px;width:640px;height:640px;background:radial-gradient(circle, rgba(255,178,36,.13), transparent 65%);animation:breathe 14s ease-in-out infinite alternate}
+.glow-b{bottom:-260px;left:-200px;width:700px;height:700px;background:radial-gradient(circle, rgba(55,191,196,.10), transparent 65%);animation:breathe 18s ease-in-out infinite alternate-reverse}
+@keyframes breathe{from{transform:scale(.92);opacity:.75}to{transform:scale(1.08);opacity:1}}
+
+main,header.topbar,.ticker,footer{position:relative;z-index:1}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+
+/* ============ barre haute ============ */
+.topbar{border-bottom:1px solid var(--line-soft)}
+.topbar .wrap{display:flex;align-items:center;justify-content:space-between;padding-top:16px;padding-bottom:16px;gap:16px}
+.brand{font:800 1.45rem var(--display);color:var(--text);text-decoration:none;letter-spacing:.5px}
+.brand .dot{color:var(--amber)}
+.top-right{display:flex;align-items:center;gap:14px}
+.badge-live{display:inline-flex;align-items:center;gap:8px;font:600 .74rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:6px 12px}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 0 rgba(58,223,165,.5);animation:pulse 2.2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(58,223,165,0)}100%{box-shadow:0 0 0 0 rgba(58,223,165,0)}}
+.top-link{font:600 .85rem var(--body);color:var(--text);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:2px;transition:.2s}
+.top-link:hover{color:var(--amber);border-color:var(--amber)}
+
+/* ============ ticker ============ */
+.ticker{overflow:hidden;border-bottom:1px solid var(--line-soft);background:rgba(18,33,40,.5)}
+.ticker-track{display:flex;width:max-content;gap:0;animation:tick 30s linear infinite}
+.ticker:hover .ticker-track{animation-play-state:paused}
+.ticker span{font:600 .72rem var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--muted);padding:9px 0;white-space:nowrap}
+.ticker b{color:var(--amber);padding:0 22px;font-weight:400}
+@keyframes tick{to{transform:translateX(-50%)}}
+
+/* ============ intro ============ */
+.intro{padding:58px 0 34px}
+.kicker{font:600 .78rem var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--amber);margin-bottom:16px}
+.kicker::before{content:"◉ ";animation:blink 2.4s infinite}
+@keyframes blink{50%{opacity:.35}}
+h1.display{font:800 clamp(2.4rem,5.4vw,4.2rem)/1.04 var(--display);letter-spacing:-.01em;max-width:16ch}
+.target{color:var(--amber);background:linear-gradient(transparent 64%, rgba(255,178,36,.22) 64%);padding:0 2px}
+.hollow{color:var(--muted)}
+.lede{margin-top:18px;max-width:58ch;color:var(--muted);font-size:1.06rem}
+.lede strong{color:var(--text);font-weight:600}
+
+/* ============ layout ============ */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start;margin-top:26px}
+.side{position:sticky;top:20px;display:grid;gap:20px}
+@media(max-width:960px){.layout{grid-template-columns:1fr}.side{position:static}}
+
+/* ============ panneaux ============ */
+.panel{background:var(--panel);border:1px solid var(--line-soft);border-radius:12px;padding:20px}
+.panel-label{font:600 .72rem var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
+.panel-label::before{content:"— ";color:var(--amber)}
+.field{margin-bottom:18px}
+.field-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;font-weight:600;font-size:.92rem}
+.field-head output{color:var(--amber);font-size:.85rem}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chip{font:600 .8rem var(--mono);color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:99px;padding:6px 12px;cursor:pointer;transition:.18s}
+.chip:hover{transform:translateY(-2px);color:var(--text);border-color:var(--amber)}
+.chip.on{background:var(--amber);border-color:var(--amber);color:#1A1206;box-shadow:0 3px 0 var(--amber-deep)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--amber) var(--fill,23%),var(--line) var(--fill,23%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;margin-top:-6px;background:var(--amber);border:2px solid #1A1206;border-radius:5px;box-shadow:0 2px 0 rgba(0,0,0,.45)}
+input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:var(--line)}
+input[type=range]::-moz-range-progress{height:6px;border-radius:3px;background:var(--amber)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--amber);border:2px solid #1A1206;border-radius:5px}
+.seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg-btn{flex:1;padding:9px;background:transparent;border:0;color:var(--muted);font:600 .9rem var(--body);cursor:pointer;transition:.18s}
+.seg-btn + .seg-btn{border-left:1px solid var(--line)}
+.seg-btn:hover{color:var(--text)}
+.seg-btn.on{background:var(--amber);color:#1A1206}
+select{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px 12px;font:500 .92rem var(--body);cursor:pointer}
+.hint{font-size:.8rem;color:var(--muted);border-top:1px dashed var(--line);padding-top:12px}
+
+/* compteur */
+.big-pct{display:flex;align-items:baseline;gap:4px}
+.big-pct .mono{font:800 3.4rem/1 var(--mono);color:var(--mint)}
+.pct-sign{font:800 1.6rem var(--mono);color:var(--mint)}
+.big-pct small{margin-left:10px;color:var(--muted);font-size:.85rem;max-width:8ch;line-height:1.25}
+.meter{height:8px;border-radius:4px;background:var(--line-soft);overflow:hidden;margin:14px 0 16px}
+.meter i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--teal),var(--mint));transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.stat-rows div{display:flex;justify-content:space-between;padding:7px 0;border-top:1px dashed var(--line-soft);font-size:.88rem}
+.stat-rows dt{color:var(--muted)}
+.stat-rows dd{font-weight:600}
+
+/* ============ dropzone ============ */
+.dropzone{
+  position:relative;background:var(--panel);
+  border:2px dashed var(--line);border-radius:14px;
+  cursor:pointer;transition:.25s;overflow:hidden;
+}
+.dropzone:hover{border-color:var(--amber);background:var(--panel-2)}
+.dropzone:hover .dz-icon{transform:scale(1.04)}
+.sprockets{height:18px;background-color:var(--panel-2);background-image:radial-gradient(circle at 12px 9px, var(--ink) 4px, transparent 4.6px);background-size:30px 18px;border-bottom:1px solid var(--line-soft)}
+.sprockets.bottom{border-bottom:0;border-top:1px solid var(--line-soft)}
+.dz-core{padding:44px 24px 50px;text-align:center}
+.dz-icon{transition:transform .3s;margin-bottom:8px}
+.arr-l{animation:pushR 1.8s ease-in-out infinite}
+.arr-r{animation:pushL 1.8s ease-in-out infinite}
+.sq-frame{transform-origin:60px 40px;animation:squish 1.8s ease-in-out infinite}
+@keyframes pushR{50%{transform:translateX(6px)}}
+@keyframes pushL{50%{transform:translateX(-6px)}}
+@keyframes squish{50%{transform:scaleX(.93)}}
+.dz-title{font:800 1.5rem var(--display);margin:10px 0 8px}
+.dz-sub{color:var(--muted);font-size:.95rem}
+.dz-sub u{text-decoration-color:var(--amber);text-underline-offset:3px}
+.link-btn{margin-top:16px;background:none;border:0;color:var(--amber);font:600 .9rem var(--body);cursor:pointer;border-bottom:1px dashed var(--amber);padding-bottom:2px;transition:.2s}
+.link-btn:hover{color:#ffd479;letter-spacing:.02em}
+
+/* ============ résultats ============ */
+.results{margin-top:44px}
+.results-head{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.results-title{font:800 1.6rem var(--display)}
+.results-title span{color:var(--amber);font-size:1rem;font-weight:600}
+.results-actions{display:flex;gap:10px}
+.btn{border:0;border-radius:9px;padding:.72rem 1.15rem;font:600 .93rem var(--body);cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
+.btn-amber{background:var(--amber);color:#1A1206;box-shadow:0 4px 0 var(--amber-deep)}
+.btn-amber:hover{filter:brightness(1.07)}
+.btn-amber:active{transform:translateY(3px);box-shadow:0 1px 0 var(--amber-deep)}
+.btn-amber:disabled{opacity:.5;cursor:wait;transform:none}
+.btn-ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+.btn-ghost:hover{border-color:var(--coral);color:var(--coral)}
+.btn-sm{padding:.55rem .95rem;font-size:.85rem}
+.btn-block{width:100%;justify-content:center}
+.empty{color:var(--muted);border:1px dashed var(--line-soft);border-radius:12px;padding:26px;text-align:center;font-size:.95rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:18px}
+
+/* carte */
+.card{background:var(--panel);border:1px solid var(--line-soft);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:transform .2s,border-color .2s;animation:cardIn .5s cubic-bezier(.2,.8,.2,1) both}
+.card:hover{transform:translateY(-3px);border-color:var(--line)}
+.card.pop{animation:pop .35s ease}
+@keyframes cardIn{from{opacity:0;transform:translateY(16px) scale(.98)}}
+@keyframes pop{40%{transform:scale(1.015)}}
+.card.out{opacity:0;transform:scale(.94);transition:.25s}
+.frame{position:relative;aspect-ratio:4/3;background:#0A1114;background-image:radial-gradient(circle, rgba(140,190,195,.06) 1px, transparent 1.4px);background-size:14px 14px;border-bottom:1px solid var(--line-soft)}
+.compare{position:absolute;inset:0;--pos:50%}
+.compare img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
+.cmp-top{position:absolute;inset:0;clip-path:inset(0 calc(100% - var(--pos)) 0 0)}
+.cmp-line{position:absolute;top:0;bottom:0;left:var(--pos);width:2px;background:#fff;transform:translateX(-50%);pointer-events:none}
+.cmp-knob{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;background:#fff;color:#0C1519;font:800 .7rem var(--mono);display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.cmp-range{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:ew-resize;margin:0}
+.compare:focus-within .cmp-line{background:var(--amber)}
+.tag{position:absolute;top:10px;font:600 .68rem var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:99px;pointer-events:none;opacity:0;transition:.3s}
+.card[data-status="done"] .tag{opacity:1}
+.tag-a{left:10px;color:var(--coral);background:rgba(255,106,77,.14);border:1px solid rgba(255,106,77,.4)}
+.tag-b{right:10px;color:var(--mint);background:rgba(58,223,165,.12);border:1px solid rgba(58,223,165,.4)}
+.proc{position:absolute;inset:0;display:none;flex-direction:column;gap:12px;align-items:center;justify-content:center;background:rgba(10,17,20,.85);text-align:center;padding:16px}
+.card[data-status="processing"] .proc,.card[data-status="queued"] .proc,.card[data-status="error"] .proc{display:flex}
+.proc-status{font:600 .8rem var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--amber)}
+.card[data-status="error"] .proc-status{color:var(--coral)}
+.proc-bar{width:150px;height:4px;border-radius:2px;background:var(--line-soft);overflow:hidden}
+.proc-bar i{display:block;height:100%;width:40%;background:var(--amber);border-radius:2px;animation:slide 1.1s ease-in-out infinite}
+@keyframes slide{from{transform:translateX(-110%)}to{transform:translateX(290%)}}
+.meta{padding:13px 14px 6px}
+.meta-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.meta-name{font-weight:600;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{background:none;border:0;color:var(--muted);font-size:1rem;cursor:pointer;padding:2px 6px;border-radius:6px;transition:.15s;line-height:1}
+.icon-btn:hover{color:var(--coral);background:rgba(255,106,77,.12)}
+.meta-sizes{display:flex;align-items:center;gap:7px;margin-top:7px;font:600 .82rem var(--mono)}
+.s-before{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(255,106,77,.6);font-weight:400}
+.arrow{color:var(--muted)}
+.s-after{color:var(--mint)}
+.pill{font:600 .68rem var(--mono);padding:2px 8px;border-radius:99px;margin-left:2px}
+.pill.good{color:var(--mint);background:rgba(58,223,165,.12);border:1px solid rgba(58,223,165,.35)}
+.pill.neutral{color:var(--amber);background:rgba(255,178,36,.1);border:1px solid rgba(255,178,36,.35)}
+.tech{font:400 .7rem var(--mono);color:var(--muted);margin-top:5px}
+.actions{padding:10px 14px 14px;margin-top:auto}
+.note{display:block;font-size:.72rem;color:var(--amber);margin-bottom:8px;min-height:0}
+
+/* ============ méthode ============ */
+.how{margin:64px 0 20px}
+.how h2{font:800 1.8rem var(--display);margin-bottom:24px}
+.how-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:22px}
+.how-item{border-top:2px solid var(--amber);padding-top:14px}
+.how-item .num{font:800 2rem var(--mono);color:var(--amber);line-height:1}
+.how-item h3{font:700 1.05rem var(--display);margin:8px 0 6px}
+.how-item p{font-size:.9rem;color:var(--muted)}
+
+/* ============ footer / overlay / toasts ============ */
+footer{border-top:1px solid var(--line-soft);margin-top:56px;padding:26px 0 34px}
+footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+footer strong{color:var(--mint);font-weight:600}
+.drop-veil{position:fixed;inset:0;z-index:100;background:rgba(12,21,25,.85);backdrop-filter:blur(3px);display:none;place-items:center;pointer-events:none}
+.drop-veil.show{display:grid}
+.drop-veil-box{border:3px dashed var(--amber);border-radius:18px;padding:44px 60px;font:800 clamp(1.4rem,4vw,2.4rem) var(--display);color:var(--amber);animation:veil .8s ease infinite alternate}
+@keyframes veil{to{transform:scale(1.02)}}
+#toasts{position:fixed;bottom:20px;right:20px;z-index:120;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--panel-2);border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:8px;padding:11px 16px;font-size:.88rem;box-shadow:0 8px 24px rgba(0,0,0,.4);opacity:0;transform:translateX(20px);transition:.3s;max-width:320px}
+.toast.in{opacity:1;transform:none}
+.toast.warn{border-left-color:var(--coral)}
+.toast.good{border-left-color:var(--mint)}
+
+@media(max-width:640px){
+  .intro{padding:38px 0 24px}
+  .drop-veil-box{padding:28px;margin:0 18px;text-align:center}
+  .badge-live{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="glow glow-a"></div>
+<div class="glow glow-b"></div>
+<div class="bg-grain"></div>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#">PRESSE<span class="dot">.</span></a>
+    <div class="top-right">
+      <span class="badge-live"><i class="pulse"></i>100 % local — rien n'est envoyé</span>
+      <!-- Remplacez par le lien de votre dépôt GitHub -->
+      <a class="top-link" href="https://github.com" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </div>
+</header>
+
+<div class="ticker" aria-hidden="true">
+  <div class="ticker-track">
+    <span>100 % local<b>●</b>Aucun envoi serveur<b>●</b>JPEG · WebP<b>●</b>Cible : 50 Ko → 2 Mo<b>●</b>Presse binaire en 7 passes<b>●</b>Export ZIP<b>●</b>API Canvas<b>●</b></span>
+    <span>100 % local<b>●</b>Aucun envoi serveur<b>●</b>JPEG · WebP<b>●</b>Cible : 50 Ko → 2 Mo<b>●</b>Presse binaire en 7 passes<b>●</b>Export ZIP<b>●</b>API Canvas<b>●</b></span>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <section class="intro">
+    <p class="kicker">Compresseur d'images · dans votre navigateur</p>
+    <h1 class="display">Pressez vos photos<br><span class="hollow">jusqu'à</span> <span class="target" id="titleTarget">500 Ko</span> <span class="hollow">pile.</span></h1>
+    <p class="lede">Glissez, on pèse, on serre la qualité au plus juste, vous repartez avec des fichiers légers. <strong>Aucun serveur, aucun envoi</strong> — juste l'API Canvas de votre navigateur.</p>
+  </section>
+
+  <div class="layout">
+    <div class="maincol">
+      <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Ajouter des photos : cliquez ou glissez-déposez">
+        <div class="sprockets"></div>
+        <div class="dz-core">
+          <svg class="dz-icon" viewBox="0 0 120 80" width="160" aria-hidden="true">
+            <g class="arr-l" stroke="#FFB224" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 40h20"/><path d="M19 32l8 8-8 8"/>
+            </g>
+            <g class="arr-r" stroke="#FFB224" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M114 40H94"/><path d="M101 32l-8 8 8 8"/>
+            </g>
+            <g class="sq-frame">
+              <rect x="38" y="14" width="44" height="52" rx="7" fill="#16282F" stroke="#FFB224" stroke-width="2.5"/>
+              <circle cx="52" cy="30" r="5.5" fill="#FF6A4D"/>
+              <path d="M40 58l11-14 7 8 6-7 16 13z" fill="#37BFC4"/>
+            </g>
+          </svg>
+          <div class="dz-title">Glissez vos photos ici</div>
+          <div class="dz-sub">ou <u>cliquez pour parcourir</u> · collez avec <kbd>Ctrl</kbd>+<kbd>V</kbd> · plusieurs à la fois</div>
+          <button class="link-btn" id="demoBtn" type="button">Essayer avec une photo de démo →</button>
+        </div>
+        <div class="sprockets bottom"></div>
+        <input type="file" id="fileInput" accept="image/*" multiple hidden>
+      </div>
+    </div>
+
+    <aside class="side">
+      <section class="panel">
+        <h2 class="panel-label">Réglages de la presse</h2>
+        <div class="field">
+          <div class="field-head"><span>Poids cible</span><output id="targetOut" class="mono">500 Ko</output></div>
+          <div class="chips" id="chips">
+            <button class="chip" data-kb="100" type="button">100 Ko</button>
+            <button class="chip" data-kb="250" type="button">250 Ko</button>
+            <button class="chip on" data-kb="500" type="button">500 Ko</button>
+            <button class="chip" data-kb="750" type="button">750 Ko</button>
+            <button class="chip" data-kb="1000" type="button">1 Mo</button>
+          </div>
+          <input type="range" id="targetRange" min="50" max="2000" step="10" value="500" aria-label="Poids cible en kilo-octets">
+        </div>
+        <div class="field">
+          <div class="field-head"><span>Format de sortie</span></div>
+          <div class="seg" id="segFormat">
+            <button class="seg-btn on" data-format="jpeg" type="button">JPEG</button>
+            <button class="seg-btn" data-format="webp" type="button">WebP</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-head"><span>Largeur maximale</span></div>
+          <select id="maxDimSel">
+            <option value="0">Originale</option>
+            <option value="1280">1 280 px</option>
+            <option value="1920">1 920 px</option>
+            <option value="2560" selected>2 560 px</option>
+            <option value="4096">4 096 px</option>
+          </select>
+        </div>
+        <p class="hint">Les réglages sont réappliqués automatiquement aux photos déjà chargées.</p>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-label">Le compteur</h2>
+        <div class="big-pct"><span id="pctVal" class="mono" data-v="0">0</span><span class="pct-sign">%</span><small>économisés au total</small></div>
+        <div class="meter"><i id="meterFill"></i></div>
+        <dl class="stat-rows">
+          <div><dt>Photos pressées</dt><dd id="stCount" class="mono">0</dd></div>
+          <div><dt>Poids d'origine</dt><dd id="stOrig" class="mono">—</dd></div>
+          <div><dt>Poids pressé</dt><dd id="stOut" class="mono">—</dd></div>
+          <div><dt>En file</dt><dd id="stQueue" class="mono">0</dd></div>
+        </dl>
+      </section>
+    </aside>
+  </div>
+
+  <section class="results">
+    <div class="results-head">
+      <h2 class="results-title">Sortie de presse <span class="mono" id="countDone">(0)</span></h2>
+      <div class="results-actions">
+        <button class="btn btn-amber btn-sm" id="btnZip" type="button">⤓ Tout télécharger (.zip)</button>
+        <button class="btn btn-ghost btn-sm" id="btnClear" type="button">Vider</button>
+      </div>
+    </div>
+    <div class="grid" id="resultsGrid"></div>
+    <p class="empty" id="emptyMsg">Rien pour l'instant — déposez une photo ci-dessus, la presse s'occupe du reste.</p>
+  </section>
+
+  <section class="how" id="how">
+    <h2>Sous le capot</h2>
+    <div class="how-grid">
+      <div class="how-item"><div class="num">01</div><h3>Déposez</h3><p>Glisser-déposer, clic ou Ctrl+V : plusieurs photos d'un coup. Vos fichiers restent chez vous.</p></div>
+      <div class="how-item"><div class="num">02</div><h3>Cadrez</h3><p>Si besoin, on réduit la largeur (2 560 px par défaut) — c'est souvent là que partent les kilos inutiles.</p></div>
+      <div class="how-item"><div class="num">03</div><h3>Pressez</h3><p>Sept pesées par recherche binaire trouvent la qualité maximale qui tient sous votre cible.</p></div>
+      <div class="how-item"><div class="num">04</div><h3>Récupérez</h3><p>Téléchargement à l'unité ou en ZIP, avec un comparateur avant/après sur chaque photo.</p></div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><strong>Vie privée :</strong> vos photos ne quittent jamais cet onglet. Tout le traitement est réalisé en local par votre navigateur.</p>
+    <p class="mono">PRESSE · prêt pour GitHub Pages · <span id="yearEl"></span></p>
+  </div>
+</footer>
+
+<div class="drop-veil" id="dropVeil"><div class="drop-veil-box">Lâchez tout — on presse !</div></div>
+<div id="toasts"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+
+/* ---------- état ---------- */
+const settings = { targetKB: 500, format: 'jpeg', maxDim: 2560 };
+let items = [], queue = [], running = 0, idSeq = 0, reprocessTimer = null;
+
+/* ---------- utilitaires ---------- */
+function fmtBytes(b){
+  if(b == null) return '—';
+  if(b >= 1048576) return (b/1048576).toLocaleString('fr-FR',{maximumFractionDigits:2}) + ' Mo';
+  if(b >= 1024) return Math.round(b/1024).toLocaleString('fr-FR') + ' Ko';
+  return b + ' o';
+}
+const fmtKB = kb => kb >= 1000 ? (kb/1000).toLocaleString('fr-FR',{maximumFractionDigits:2}) + ' Mo' : kb + ' Ko';
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const toBlob = (canvas, type, q) => new Promise(res => canvas.toBlob(res, type, q));
+
+function toast(msg, kind){
+  const t = document.createElement('div');
+  t.className = 'toast' + (kind ? ' ' + kind : '');
+  t.textContent = msg;
+  $('#toasts').append(t);
+  requestAnimationFrame(() => t.classList.add('in'));
+  setTimeout(() => { t.classList.remove('in'); setTimeout(() => t.remove(), 320); }, 2800);
+}
+
+function tween(el, to, fmt){
+  const from = parseFloat(el.dataset.v || '0'), t0 = performance.now(), d = 650;
+  (function step(t){
+    const p = Math.min(1, (t - t0) / d), e = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(from + (to - from) * e);
+    if(p < 1) requestAnimationFrame(step); else el.dataset.v = to;
+  })(t0);
+}
+
+function saveBlob(blob, name){
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = u; a.download = name;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 5000);
+}
+
+function loadScript(src){
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = () => rej(new Error('cdn'));
+    document.head.append(s);
+  });
+}
+
+/* ---------- moteur de compression ---------- */
+async function loadBitmap(file){
+  if('createImageBitmap' in window){
+    try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch(e){}
+    try { return await createImageBitmap(file); } catch(e){}
+  }
+  const url = URL.createObjectURL(file);
+  const img = await new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => res(i); i.onerror = () => rej(new Error('decode'));
+    i.src = url;
+  });
+  URL.revokeObjectURL(url);
+  return img;
+}
+
+function drawScaled(src, scale){
+  const w = Math.max(1, Math.round(src.width * scale));
+  const h = Math.max(1, Math.round(src.height * scale));
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(src, 0, 0, w, h);
+  return c;
+}
+
+function setStatus(item, txt){
+  const el = item.el && item.el.querySelector('.proc-status');
+  if(el) el.textContent = txt;
+}
+
+function setResult(item, result){
+  if(item.result && item.result.url && item.result.url !== result.url){
+    URL.revokeObjectURL(item.result.url);
+  }
+  item.result = result;
+}
+
+async function processItem(item){
+  item.status = 'processing';
+  renderCard(item);
+  const target = settings.targetKB * 1024;
+  try {
+    setStatus(item, 'Lecture…');
+    if(!item.bitmap) item.bitmap = await loadBitmap(item.file);
+    if(item.removed) return;
+    const bw = item.bitmap.width, bh = item.bitmap.height;
+    item.width = bw; item.height = bh;
+
+    if(item.file.size <= target){
+      setResult(item, { blob: item.file, url: URL.createObjectURL(item.file), q: null, w: bw, h: bh,
+        mime: item.file.type || 'image/jpeg', passthrough: true, note: 'Déjà sous la cible ✓' });
+      return finishItem(item);
+    }
+
+    const wanted = settings.format === 'webp' ? 'image/webp' : 'image/jpeg';
+    let mime = wanted;
+    setStatus(item, 'Cadrage…');
+    const maxSide = settings.maxDim || Math.max(bw, bh);
+    let scale = Math.min(1, maxSide / Math.max(bw, bh));
+    let canvas = drawScaled(item.bitmap, scale);
+
+    let probe = await toBlob(canvas, mime, 0.55);
+    if(item.removed) return;
+    if(probe && probe.type !== mime) mime = probe.type; // codec de secours
+    let rounds = 0;
+    while(probe && probe.size > target && canvas.width > 280 && rounds < 6){
+      rounds++;
+      setStatus(item, 'Pressage ×' + (rounds + 1) + '…');
+      scale *= 0.8;
+      canvas = drawScaled(item.bitmap, scale);
+      probe = await toBlob(canvas, mime, 0.55);
+      if(item.removed) return;
+    }
+    if(!probe) throw new Error('encodage impossible');
+
+    setStatus(item, 'Pesée fine de la qualité…');
+    let lo = 0.04, hi = 0.96, best = null, bestQ = lo;
+    for(let i = 0; i < 7; i++){
+      const q = (lo + hi) / 2;
+      const b = await toBlob(canvas, mime, q);
+      if(!b) break;
+      if(b.size <= target){ best = b; bestQ = q; lo = q; } else { hi = q; }
+    }
+    let note = null;
+    if(!best){ best = await toBlob(canvas, mime, 0.04); bestQ = 0.04; note = 'Cible inatteignable à cette taille'; }
+    if(mime !== wanted) note = (note ? note + ' · ' : '') + 'WebP indisponible ici → JPEG';
+
+    if(best.size >= item.file.size){
+      setResult(item, { blob: item.file, url: URL.createObjectURL(item.file), q: null, w: bw, h: bh,
+        mime: item.file.type || 'image/jpeg', passthrough: true, note: 'L\u2019originale était déjà optimale' });
+    } else {
+      setResult(item, { blob: best, url: URL.createObjectURL(best), q: bestQ, w: canvas.width, h: canvas.height, mime, note });
+    }
+    finishItem(item);
+  } catch(err){
+    console.error(err);
+    item.status = 'error';
+    setStatus(item, 'Impossible de décoder cette image 😕');
+    renderCard(item);
+  }
+}
+
+function finishItem(item){
+  if(item.removed) return;
+  item.status = 'done';
+  renderCard(item);
+  item.el.classList.add('pop');
+  setTimeout(() => item.el && item.el.classList.remove('pop'), 400);
+}
+
+/* file d'attente (2 traitements en parallèle) */
+function enqueue(item){
+  if(item.removed || item.busy) return;
+  if(item.status !== 'processing') item.status = 'queued';
+  queue.push(item);
+  renderCard(item);
+  pump();
+}
+function pump(){
+  while(running < 2 && queue.length){
+    const it = queue.shift();
+    if(it.removed || it.busy) continue;
+    running++;
+    it.busy = true;
+    processItem(it)
+      .catch(e => console.error(e))
+      .finally(() => {
+        it.busy = false; running--;
+        if(it.dirty && !it.removed){ it.dirty = false; enqueue(it); }
+        updateStats();
+        pump();
+      });
+  }
+}
+
+/* ---------- cartes résultat ---------- */
+function createCard(item, delay){
+  const el = document.createElement('article');
+  el.className = 'card';
+  el.style.animationDelay = delay + 'ms';
+  el.innerHTML = `
+    <div class="frame">
+      <div class="compare" style="--pos:50%">
+        <img class="cmp-b" alt="" draggable="false">
+        <div class="cmp-top"><img class="cmp-a" alt="" draggable="false"></div>
+        <div class="cmp-line"><span class="cmp-knob">◂▸</span></div>
+        <input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Comparer avant / après">
+        <span class="tag tag-a">Avant</span><span class="tag tag-b">Après</span>
+      </div>
+      <div class="proc">
+        <span class="proc-status">En file…</span>
+        <div class="proc-bar"><i></i></div>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="meta-top">
+        <span class="meta-name"></span>
+        <button class="icon-btn del" type="button" aria-label="Retirer cette photo">✕</button>
+      </div>
+      <div class="meta-sizes"><b class="s-before"></b><span class="arrow">→</span><b class="s-after">—</b><span class="pill"></span></div>
+      <div class="tech"></div>
+    </div>
+    <div class="actions">
+      <span class="note"></span>
+      <button class="btn btn-amber btn-sm btn-block dl" type="button">⤓ Télécharger</button>
+    </div>`;
+  item.el = el;
+  const q = s => el.querySelector(s);
+
+  q('.cmp-range').addEventListener('input', e => {
+    q('.compare').style.setProperty('--pos', e.target.value + '%');
+  });
+  q('.dl').addEventListener('click', () => {
+    if(item.result) saveBlob(item.result.blob, outName(item));
+  });
+  q('.del').addEventListener('click', () => removeItem(item));
+
+  $('#resultsGrid').append(el);
+  renderCard(item);
+}
+
+function renderCard(item){
+  const el = item.el;
+  if(!el) return;
+  el.dataset.status = item.status;
+  const q = s => el.querySelector(s);
+  q('.meta-name').textContent = item.name;
+  q('.meta-name').title = item.name;
+  q('.s-before').textContent = fmtBytes(item.file.size);
+  q('.cmp-a').src = item.origURL;
+
+  if(item.status === 'done' && item.result){
+    const r = item.result;
+    const bImg = q('.cmp-b');
+    if(bImg.getAttribute('src') !== r.url) bImg.src = r.url;
+    q('.s-after').textContent = fmtBytes(r.blob.size);
+    const pct = item.file.size ? Math.round((1 - r.blob.size / item.file.size) * 100) : 0;
+    const pill = q('.pill');
+    if(pct > 0){ pill.textContent = '−' + pct + ' %'; pill.className = 'pill good'; }
+    else { pill.textContent = '≈ 0 %'; pill.className = 'pill neutral'; }
+    const ext = r.mime.includes('webp') ? 'webp' : r.mime.includes('png') ? 'png' : 'jpg';
+    q('.tech').textContent = r.w + '×' + r.h + ' px' + (r.q != null ? ' · q ' + r.q.toFixed(2) : '') + ' · ' + ext.toUpperCase();
+    q('.note').textContent = r.note || '';
+  } else if(item.status === 'error'){
+    q('.s-after').textContent = '—';
+    q('.pill').textContent = '';
+  }
+}
+
+function outName(item){
+  const base = item.name.replace(/\.[^.]+$/, '') || 'photo';
+  const m = item.result ? item.result.mime : 'image/jpeg';
+  const ext = m.includes('webp') ? 'webp' : m.includes('png') ? 'png' : 'jpg';
+  return base + '-presse.' + ext;
+}
+
+function removeItem(item){
+  item.removed = true;
+  items = items.filter(i => i !== item);
+  queue = queue.filter(i => i !== item);
+  if(item.origURL) URL.revokeObjectURL(item.origURL);
+  if(item.result && item.result.url) URL.revokeObjectURL(item.result.url);
+  if(item.bitmap && item.bitmap.close) { try{ item.bitmap.close(); }catch(e){} }
+  const el = item.el;
+  if(el){ el.classList.add('out'); setTimeout(() => el.remove(), 260); }
+  updateStats();
+}
+
+/* ---------- ajout de fichiers ---------- */
+function addFiles(list){
+  const all = [...list];
+  const files = all.filter(f => f && (f.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(f.name || '')));
+  const rejected = all.length - files.length;
+  if(rejected > 0) toast(rejected + ' fichier(s) ignoré(s) — images uniquement', 'warn');
+  if(!files.length) return;
+  files.forEach((f, i) => {
+    const item = {
+      id: ++idSeq, file: f, name: f.name || 'image', status: 'queued',
+      bitmap: null, origURL: URL.createObjectURL(f), result: null, dirty: false, busy: false
+    };
+    items.push(item);
+    createCard(item, i * 70);
+    enqueue(item);
+  });
+  updateStats();
+}
+
+/* ---------- stats ---------- */
+function updateStats(){
+  const done = items.filter(i => i.status === 'done' && i.result);
+  const orig = done.reduce((s, i) => s + i.file.size, 0);
+  const out = done.reduce((s, i) => s + i.result.blob.size, 0);
+  const pct = orig ? Math.round((1 - out / orig) * 100) : 0;
+  tween($('#pctVal'), pct, v => Math.round(v));
+  $('#meterFill').style.width = pct + '%';
+  $('#stCount').textContent = done.length;
+  $('#stOrig').textContent = orig ? fmtBytes(orig) : '—';
+  $('#stOut').textContent = out ? fmtBytes(out) : '—';
+  $('#stQueue').textContent = queue.length + running;
+  $('#countDone').textContent = '(' + done.length + ')';
+  $('#emptyMsg').style.display = items.length ? 'none' : '';
+}
+
+/* ---------- réglages ---------- */
+function updateTargetUI(){
+  $('#targetOut').textContent = fmtKB(settings.targetKB);
+  $('#titleTarget').textContent = fmtKB(settings.targetKB);
+  const r = $('#targetRange');
+  r.value = settings.targetKB;
+  r.style.setProperty('--fill', ((settings.targetKB - 50) / 1950 * 100) + '%');
+  document.querySelectorAll('#chips .chip').forEach(c =>
+    c.classList.toggle('on', +c.dataset.kb === settings.targetKB));
+}
+
+function scheduleReprocess(){
+  clearTimeout(reprocessTimer);
+  reprocessTimer = setTimeout(() => {
+    items.forEach(it => {
+      if(it.removed || it.status === 'error') return;
+      if(it.busy){ it.dirty = true; return; }
+      it.status = 'queued';
+      enqueue(it);
+    });
+    updateStats();
+  }, 450);
+}
+
+document.querySelectorAll('#chips .chip').forEach(c => c.addEventListener('click', () => {
+  settings.targetKB = +c.dataset.kb;
+  updateTargetUI(); scheduleReprocess();
+}));
+$('#targetRange').addEventListener('input', e => {
+  settings.targetKB = +e.target.value;
+  updateTargetUI(); scheduleReprocess();
+});
+document.querySelectorAll('#segFormat .seg-btn').forEach(b => b.addEventListener('click', () => {
+  settings.format = b.dataset.format;
+  document.querySelectorAll('#segFormat .seg-btn').forEach(x => x.classList.toggle('on', x === b));
+  scheduleReprocess();
+}));
+$('#maxDimSel').addEventListener('change', e => {
+  settings.maxDim = +e.target.value;
+  scheduleReprocess();
+});
+
+/* ---------- dropzone + global drag + paste ---------- */
+const dz = $('#dropzone'), fi = $('#fileInput');
+dz.addEventListener('click', () => fi.click());
+dz.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fi.click(); } });
+fi.addEventListener('change', () => { addFiles(fi.files); fi.value = ''; });
+$('#demoBtn').addEventListener('click', e => { e.stopPropagation(); demoPhoto(); });
+
+const veil = $('#dropVeil');
+let depth = 0;
+const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+window.addEventListener('dragenter', e => { if(!hasFiles(e)) return; depth++; veil.classList.add('show'); });
+window.addEventListener('dragleave', e => { if(!hasFiles(e)) return; depth = Math.max(0, depth - 1); if(!depth) veil.classList.remove('show'); });
+window.addEventListener('dragover', e => { if(hasFiles(e)) e.preventDefault(); });
+window.addEventListener('drop', e => {
+  if(!hasFiles(e)) return;
+  e.preventDefault(); depth = 0; veil.classList.remove('show');
+  addFiles(e.dataTransfer.files);
+});
+window.addEventListener('paste', e => {
+  const files = [...(e.clipboardData ? e.clipboardData.items : [])]
+    .filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
+  if(files.length){ addFiles(files); toast(files.length + ' image(s) collée(s)', 'good'); }
+});
+
+/* ---------- photo de démonstration ---------- */
+async function demoPhoto(){
+  const w = 2400, h = 1500;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d');
+  const sky = x.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, '#122A3A'); sky.addColorStop(.45, '#B4562F');
+  sky.addColorStop(.62, '#F2A65A'); sky.addColorStop(.68, '#0F2228'); sky.addColorStop(1, '#081215');
+  x.fillStyle = sky; x.fillRect(0, 0, w, h);
+  const sun = x.createRadialGradient(w * .68, h * .5, 20, w * .68, h * .5, 340);
+  sun.addColorStop(0, 'rgba(255,224,150,.95)'); sun.addColorStop(.25, 'rgba(255,178,36,.55)'); sun.addColorStop(1, 'rgba(255,178,36,0)');
+  x.fillStyle = sun; x.fillRect(0, 0, w, h);
+  x.fillStyle = '#FFE9B0'; x.beginPath(); x.arc(w * .68, h * .5, 86, 0, 7); x.fill();
+  const ridge = (base, amp, color, seed) => {
+    x.fillStyle = color; x.beginPath(); x.moveTo(0, h);
+    for(let i = 0; i <= 48; i++){
+      const y = base + Math.sin(i * .7 + seed) * amp + (Math.random() - .5) * amp * .6;
+      x.lineTo(i * (w / 48), y);
+    }
+    x.lineTo(w, h); x.closePath(); x.fill();
+  };
+  ridge(h * .60, 60, '#1D3A42', 1); ridge(h * .66, 80, '#142B33', 5); ridge(h * .72, 55, '#0C1B21', 9);
+  x.fillStyle = 'rgba(255,178,36,.10)';
+  for(let i = 0; i < 260; i++){
+    const yy = h * .74 + Math.random() * h * .24, ww = 30 + Math.random() * 240;
+    x.fillRect(w * .68 - ww / 2 + (Math.random() - .5) * 80, yy, ww, 2);
+  }
+  const g = document.createElement('canvas'); g.width = g.height = 160;
+  const gx = g.getContext('2d'), id = gx.createImageData(160, 160);
+  for(let i = 0; i < id.data.length; i += 4){
+    const v = Math.random() * 255;
+    id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 26;
+  }
+  gx.putImageData(id, 0, 0);
+  x.globalAlpha = .5; x.fillStyle = x.createPattern(g, 'repeat'); x.fillRect(0, 0, w, h); x.globalAlpha = 1;
+  toast('Génération de la photo de démo…');
+  const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', .95));
+  addFiles([new File([blob], 'photo-de-demo.jpg', { type: 'image/jpeg' })]);
+}
+
+/* ---------- actions globales ---------- */
+$('#btnClear').addEventListener('click', () => {
+  if(!items.length) return;
+  [...items].forEach(removeItem);
+  toast('Presse vidée');
+});
+
+$('#btnZip').addEventListener('click', async () => {
+  const done = items.filter(i => i.status === 'done' && i.result);
+  if(!done.length) return toast('Aucune photo pressée pour l\u2019instant', 'warn');
+  const btn = $('#btnZip');
+  btn.disabled = true; btn.textContent = 'Préparation…';
+  try {
+    if(!window.JSZip) await loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+    const zip = new JSZip();
+    const used = {};
+    done.forEach(it => {
+      let n = outName(it);
+      if(used[n]){ used[n]++; n = n.replace(/(\.[^.]+)$/, '-' + used[n] + '$1'); } else used[n] = 1;
+      zip.file(n, it.result.blob);
+    });
+    const blob = await zip.generateAsync({ type: 'blob' });
+    saveBlob(blob, 'photos-pressees.zip');
+    toast('ZIP téléchargé ✓', 'good');
+  } catch(e){
+    for(const it of done){ saveBlob(it.result.blob, outName(it)); await wait(350); }
+    toast('ZIP indisponible hors ligne : fichiers téléchargés un par un', 'warn');
+  }
+  btn.disabled = false; btn.textContent = '⤓ Tout télécharger (.zip)';
+});
+
+/* ---------- init ---------- */
+updateTargetUI();
+updateStats();
+$('#yearEl').textContent = new Date().getFullYear();
+})();
+</script>
+</body>
+</html>
